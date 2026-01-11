@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
 use rustemon::client::RustemonClient;
-use rustemon::pokemon::pokemon::Pokemon;
-use rustemon::pokemon::pokemon_species::PokemonSpecies;
-use rustemon::pokemon::r#type::Type;
+use rustemon::model::pokemon::Pokemon;
+use rustemon::model::pokemon::PokemonSpecies;
 use std::fmt::Write;
 
 pub struct PokeApiClient {
@@ -17,32 +16,37 @@ impl PokeApiClient {
     }
 
     pub async fn get_pokemon(&self, name_or_id: &str) -> Result<Pokemon> {
-        Pokemon::get_by_name(name_or_id, &self.client)
-            .await
-            .or_else(|_| {
+        // Try by name first
+        match rustemon::pokemon::pokemon::get_by_name(name_or_id, &self.client).await {
+            Ok(pokemon) => Ok(pokemon),
+            Err(_) => {
                 // Try parsing as ID
-                if let Ok(id) = name_or_id.parse::<u64>() {
-                    Pokemon::get_by_id(id, &self.client)
+                if let Ok(id) = name_or_id.parse::<i64>() {
+                    rustemon::pokemon::pokemon::get_by_id(id, &self.client)
+                        .await
+                        .context(format!("Failed to find Pokemon with ID: {}", id))
                 } else {
-                    Err(rustemon::error::RustemonError::NotFound)
+                    Err(anyhow::anyhow!("Failed to find Pokemon: {}", name_or_id))
                 }
-            })
-            .await
-            .context(format!("Failed to find Pokemon: {}", name_or_id))
+            }
+        }
     }
 
     pub async fn get_pokemon_species(&self, name_or_id: &str) -> Result<PokemonSpecies> {
-        PokemonSpecies::get_by_name(name_or_id, &self.client)
-            .await
-            .or_else(|_| {
-                if let Ok(id) = name_or_id.parse::<u64>() {
-                    PokemonSpecies::get_by_id(id, &self.client)
+        // Try by name first
+        match rustemon::pokemon::pokemon_species::get_by_name(name_or_id, &self.client).await {
+            Ok(species) => Ok(species),
+            Err(_) => {
+                // Try parsing as ID
+                if let Ok(id) = name_or_id.parse::<i64>() {
+                    rustemon::pokemon::pokemon_species::get_by_id(id, &self.client)
+                        .await
+                        .context(format!("Failed to find Pokemon species with ID: {}", id))
                 } else {
-                    Err(rustemon::error::RustemonError::NotFound)
+                    Err(anyhow::anyhow!("Failed to find Pokemon species: {}", name_or_id))
                 }
-            })
-            .await
-            .context(format!("Failed to find Pokemon species: {}", name_or_id))
+            }
+        }
     }
 
     pub fn format_pokemon_data(&self, pokemon: &Pokemon) -> String {
@@ -56,7 +60,7 @@ impl PokeApiClient {
         let types: Vec<String> = pokemon
             .types
             .iter()
-            .map(|t| t.r#type.name.clone())
+            .map(|t| t.type_.name.clone())
             .collect();
         writeln!(output, "{}", types.join(", ")).ok();
         
@@ -101,7 +105,9 @@ impl PokeApiClient {
         // Add species information
         writeln!(output, "\nSpecies Information:").ok();
         writeln!(output, "  Capture Rate: {}", species.capture_rate).ok();
-        writeln!(output, "  Base Happiness: {}", species.base_happiness).ok();
+        if let Some(base_happiness) = species.base_hapiness {
+            writeln!(output, "  Base Happiness: {}", base_happiness).ok();
+        }
         writeln!(output, "  Is Legendary: {}", species.is_legendary).ok();
         writeln!(output, "  Is Mythical: {}", species.is_mythical).ok();
         

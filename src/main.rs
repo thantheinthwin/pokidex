@@ -33,6 +33,12 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     
     let rag_engine = RAGEngine::new()?;
+
+    let _ctrlc = tokio::spawn(async {
+        tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl-c");
+        println!("\nReceived Ctrl-C, exiting...");
+        std::process::exit(0);
+    });
     
     match cli.command {
         Some(Commands::Ask { question }) => {

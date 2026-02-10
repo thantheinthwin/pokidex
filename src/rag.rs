@@ -1,6 +1,6 @@
-use anyhow::Result;
 use crate::gemini::GeminiClient;
 use crate::pokeapi::PokeApiClient;
+use anyhow::Result;
 use serde_json::Value;
 
 pub struct RAGEngine {
@@ -24,11 +24,17 @@ impl RAGEngine {
 Available tools you can call:
 1) get_pokemon(name) -> Returns detailed Pokemon data for a given name or id.
 2) get_pokemon_species(name) -> Returns species information (flavor text, capture rate, etc.).
+3) get_pokemon_stats(name) -> Returns only base stats for a given pokemon.
+4) get_pokemon_moves(name) -> Returns a compact move list for a given pokemon.
 
 If you need to call a tool, respond with a JSON object exactly in this shape:
   {"type":"action","tool":"get_pokemon","name":"pikachu"}
 or
   {"type":"action","tool":"get_pokemon_species","name":"pikachu"}
+or
+  {"type":"action","tool":"get_pokemon_stats","name":"pikachu"}
+or
+  {"type":"action","tool":"get_pokemon_moves","name":"pikachu"}
 
 If you can answer the user directly without calling a tool, respond with:
   {"type":"final","answer":"<your answer>"}
@@ -49,7 +55,10 @@ If you can answer the user directly without calling a tool, respond with:
                     "action" => {
                         let tool = json.get("tool").and_then(|v| v.as_str()).unwrap_or("");
                         let name = json.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                        println!("[RAG] Model requested action: tool='{}' name='{}'", tool, name);
+                        println!(
+                            "[RAG] Model requested action: tool='{}' name='{}'",
+                            tool, name
+                        );
 
                         // Execute the requested tool
                         let tool_output = match tool {
@@ -57,8 +66,11 @@ If you can answer the user directly without calling a tool, respond with:
                                 match self.pokeapi.get_pokemon(name).await {
                                     Ok(pokemon) => {
                                         // Try to also fetch species for richer context
-                                        if let Ok(species) = self.pokeapi.get_pokemon_species(name).await {
-                                            self.pokeapi.format_pokemon_with_species(&pokemon, &species)
+                                        if let Ok(species) =
+                                            self.pokeapi.get_pokemon_species(name).await
+                                        {
+                                            self.pokeapi
+                                                .format_pokemon_with_species(&pokemon, &species)
                                         } else {
                                             self.pokeapi.format_pokemon_data(&pokemon)
                                         }
@@ -71,23 +83,39 @@ If you can answer the user directly without calling a tool, respond with:
                                     Ok(species) => {
                                         // Try to also fetch the Pokemon to reuse existing formatter
                                         if let Ok(pokemon) = self.pokeapi.get_pokemon(name).await {
-                                            self.pokeapi.format_pokemon_with_species(&pokemon, &species)
+                                            self.pokeapi
+                                                .format_pokemon_with_species(&pokemon, &species)
                                         } else {
                                             // Build a minimal, human-readable species summary without serde
                                             let mut out = String::new();
                                             out.push_str("Species Information:\n");
-                                            out.push_str(&format!("  Capture Rate: {}\n", species.capture_rate));
+                                            out.push_str(&format!(
+                                                "  Capture Rate: {}\n",
+                                                species.capture_rate
+                                            ));
                                             if let Some(base_hap) = species.base_hapiness {
-                                                out.push_str(&format!("  Base Happiness: {}\n", base_hap));
+                                                out.push_str(&format!(
+                                                    "  Base Happiness: {}\n",
+                                                    base_hap
+                                                ));
                                             }
-                                            out.push_str(&format!("  Is Legendary: {}\n", species.is_legendary));
-                                            out.push_str(&format!("  Is Mythical: {}\n", species.is_mythical));
+                                            out.push_str(&format!(
+                                                "  Is Legendary: {}\n",
+                                                species.is_legendary
+                                            ));
+                                            out.push_str(&format!(
+                                                "  Is Mythical: {}\n",
+                                                species.is_mythical
+                                            ));
                                             if let Some(flavor_text) = species
                                                 .flavor_text_entries
                                                 .iter()
                                                 .find(|e| e.language.name == "en")
                                             {
-                                                out.push_str(&format!("  Description: {}\n", flavor_text.flavor_text.replace('\n', " ")));
+                                                out.push_str(&format!(
+                                                    "  Description: {}\n",
+                                                    flavor_text.flavor_text.replace('\n', " ")
+                                                ));
                                             }
                                             out
                                         }
@@ -95,6 +123,14 @@ If you can answer the user directly without calling a tool, respond with:
                                     Err(e) => format!("Error fetching species: {}", e),
                                 }
                             }
+                            "get_pokemon_stats" => match self.pokeapi.get_pokemon(name).await {
+                                Ok(pokemon) => self.pokeapi.format_pokemon_stats(&pokemon),
+                                Err(e) => format!("Error fetching pokemon stats: {}", e),
+                            },
+                            "get_pokemon_moves" => match self.pokeapi.get_pokemon(name).await {
+                                Ok(pokemon) => self.pokeapi.format_pokemon_moves(&pokemon, 30),
+                                Err(e) => format!("Error fetching pokemon moves: {}", e),
+                            },
                             _ => format!("Unknown tool requested: {}", tool),
                         };
 
@@ -123,7 +159,7 @@ If you can answer the user directly without calling a tool, respond with:
 
         // Fallback: try to extract a Pokemon name and use the RAG pattern as before.
         let pokemon_name = self.pokeapi.extract_pokemon_name(query).await;
-        
+
         if let Some(name) = pokemon_name {
             let pokemon = self.pokeapi.get_pokemon(&name).await?;
             let species = self.pokeapi.get_pokemon_species(&name).await.ok();

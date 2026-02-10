@@ -29,17 +29,19 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv::dotenv().ok(); // Load .env file if present
-    
+
     let cli = Cli::parse();
-    
+
     let rag_engine = RAGEngine::new()?;
 
     let _ctrlc = tokio::spawn(async {
-        tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl-c");
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to listen for ctrl-c");
         println!("\nReceived Ctrl-C, exiting...");
         std::process::exit(0);
     });
-    
+
     match cli.command {
         Some(Commands::Ask { question }) => {
             println!("Processing your question...\n");
@@ -57,32 +59,32 @@ async fn main() -> Result<()> {
             run_chat_mode(rag_engine).await?;
         }
     }
-    
+
     Ok(())
 }
 
 async fn run_chat_mode(rag_engine: RAGEngine) -> Result<()> {
     println!("Welcome to Pokidex RAG Agent!");
     println!("Ask me anything about Pokemon. Type 'quit' or 'exit' to leave.\n");
-    
+
     loop {
         print!("You: ");
         io::stdout().flush()?;
-        
+
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        
+
         let query = input.trim();
-        
+
         if query.is_empty() {
             continue;
         }
-        
+
         if query == "quit" || query == "exit" {
             println!("Goodbye!");
             break;
         }
-        
+
         if query == "help" {
             println!("Ask me questions about Pokemon! Examples:");
             println!("  - What are Pikachu's stats?");
@@ -91,10 +93,10 @@ async fn run_chat_mode(rag_engine: RAGEngine) -> Result<()> {
             println!("\nType 'quit' or 'exit' to leave.\n");
             continue;
         }
-        
+
         print!("Assistant: ");
         io::stdout().flush()?;
-        
+
         match rag_engine.process_query(query).await {
             Ok(response) => {
                 println!("{}", response);
@@ -106,6 +108,6 @@ async fn run_chat_mode(rag_engine: RAGEngine) -> Result<()> {
         }
         println!();
     }
-    
+
     Ok(())
 }

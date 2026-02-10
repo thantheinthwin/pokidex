@@ -8,17 +8,17 @@ pub struct GeminiClient {
 
 impl GeminiClient {
     pub fn new() -> Result<Self> {
-        let api_key = env::var("GEMINI_API_KEY")
-            .context("GEMINI_API_KEY environment variable not set")?;
-        
-        let client = Gemini::new(&api_key)
-            .context("Failed to create Gemini client")?;
-        
+        let api_key =
+            env::var("GEMINI_API_KEY").context("GEMINI_API_KEY environment variable not set")?;
+
+        let client = Gemini::new(&api_key).context("Failed to create Gemini client")?;
+
         Ok(Self { client })
     }
 
     pub async fn generate_content(&self, prompt: &str) -> Result<String> {
-        let response = self.client
+        let response = self
+            .client
             .generate_content()
             .with_user_message(prompt)
             .execute()

@@ -8,6 +8,7 @@ A CLI-based RAG (Retrieval-Augmented Generation) system that combines Google's G
 - 📊 **Pokemon Data**: Retrieves real-time Pokemon data from PokéAPI
 - 💬 **Interactive CLI**: Chat interface for asking questions about Pokemon
 - 🔍 **RAG System**: Combines retrieved Pokemon data with AI for accurate responses
+- 🧰 **Tool-Oriented Reasoning**: The agent can choose focused tools for full details, species info, stats, and moves
 
 ## Quick Start
 

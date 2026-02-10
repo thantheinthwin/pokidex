@@ -170,6 +170,36 @@ cargo test
 cargo run -- chat
 ```
 
+## Docker
+
+You can run Pokidex in a container without installing Rust locally.
+
+### Build the image
+
+```bash
+docker build -t pokidex .
+```
+
+### Run interactive chat
+
+```bash
+docker run --rm -it --env-file .env pokidex
+```
+
+### Ask a single question
+
+```bash
+docker run --rm --env-file .env pokidex ask "What are Pikachu's stats?"
+```
+
+### Run with Docker Compose
+
+```bash
+docker compose up --build
+```
+
+Compose is configured for interactive chat mode (`stdin_open` + `tty`) and reads your Gemini key from `.env`.
+
 ## License
 
 This project is open source and available for personal and educational use.

@@ -183,8 +183,10 @@ docker build -t pokidex .
 ### Run interactive chat
 
 ```bash
-docker run --rm -it --env-file .env pokidex
+docker run --rm -it --env-file .env pokidex chat
 ```
+By default, running the image with no arguments prints CLI help and exits.
+
 
 ### Ask a single question
 

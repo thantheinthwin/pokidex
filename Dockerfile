@@ -21,4 +21,4 @@ WORKDIR /app
 COPY --from=builder /app/target/release/pokidex /usr/local/bin/pokidex
 
 ENTRYPOINT ["/usr/local/bin/pokidex"]
-CMD ["chat"]
+CMD ["--help"]

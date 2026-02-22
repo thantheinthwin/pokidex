@@ -188,7 +188,11 @@ If you can answer the user directly without calling a tool, respond with:
                             }
                         };
 
-                        let species = self.pokeapi.get_pokemon_species(&normalized_name).await.ok();
+                        let species = self
+                            .pokeapi
+                            .get_pokemon_species(&normalized_name)
+                            .await
+                            .ok();
                         let specs = if let Some(species) = species {
                             self.pokeapi.format_pokemon_with_species(&pokemon, &species)
                         } else {

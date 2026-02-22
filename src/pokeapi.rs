@@ -162,36 +162,30 @@ impl PokeApiClient {
         let mut last_was_dash = false;
 
         for ch in name.trim().to_lowercase().chars() {
-            match ch {
-                'a'..='z' | '0'..='9' => {
-                    normalized.push(ch);
-                    last_was_dash = false;
+            let mapped = match ch {
+                'é' => Some('e'),
+                '♀' => Some('f'),
+                '♂' => Some('m'),
+                c if c.is_ascii_alphanumeric() => Some(c),
+                _ => None,
+            };
+
+            if let Some(c) = mapped {
+                if (c == 'f' || c == 'm')
+                    && matches!(ch, '♀' | '♂')
+                    && !normalized.is_empty()
+                    && !last_was_dash
+                {
+                    normalized.push('-');
                 }
-                ' ' | '-' | '_' | ':' => {
-                    if !normalized.is_empty() && !last_was_dash {
-                        normalized.push('-');
-                        last_was_dash = true;
-                    }
-                }
-                '♀' => {
-                    if !normalized.is_empty() && !last_was_dash {
-                        normalized.push('-');
-                    }
-                    normalized.push('f');
-                    last_was_dash = false;
-                }
-                '♂' => {
-                    if !normalized.is_empty() && !last_was_dash {
-                        normalized.push('-');
-                    }
-                    normalized.push('m');
-                    last_was_dash = false;
-                }
-                'é' => {
-                    normalized.push('e');
-                    last_was_dash = false;
-                }
-                _ => {}
+                normalized.push(c);
+                last_was_dash = false;
+            } else if matches!(ch, ' ' | '-' | '_' | '/' | ':')
+                && !normalized.is_empty()
+                && !last_was_dash
+            {
+                normalized.push('-');
+                last_was_dash = true;
             }
         }
 
@@ -205,13 +199,30 @@ mod tests {
 
     #[test]
     fn normalizes_display_names_to_pokeapi_slugs() {
-        assert_eq!(PokeApiClient::normalize_pokemon_name(" Mr. Mime "), "mr-mime");
-        assert_eq!(PokeApiClient::normalize_pokemon_name("Type: Null"), "type-null");
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name(" Mr. Mime "),
+            "mr-mime"
+        );
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Type: Null"),
+            "type-null"
+        );
         assert_eq!(
             PokeApiClient::normalize_pokemon_name("Farfetch'd"),
             "farfetchd"
         );
-        assert_eq!(PokeApiClient::normalize_pokemon_name("Nidoran♀"), "nidoran-f");
-        assert_eq!(PokeApiClient::normalize_pokemon_name("Nidoran♂"), "nidoran-m");
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Nidoran♀"),
+            "nidoran-f"
+        );
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Nidoran♂"),
+            "nidoran-m"
+        );
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Porygon/Z"),
+            "porygon-z"
+        );
+        assert_eq!(PokeApiClient::normalize_pokemon_name("Ho-Oh"), "ho-oh");
     }
 }

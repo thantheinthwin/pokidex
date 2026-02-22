@@ -23,11 +23,17 @@ impl RAGEngine {
 Available tools you can call:
 1) get_pokemon(name) -> Returns detailed Pokemon data for a given name or id.
 2) get_pokemon_species(name) -> Returns species information (flavor text, capture rate, etc.).
+3) get_pokemon_stats(name) -> Returns only base stats for a given pokemon.
+4) get_pokemon_moves(name) -> Returns a compact move list for a given pokemon.
 
 If you need to call a tool, respond with a JSON object exactly in this shape:
   {"type":"action","tool":"get_pokemon","name":"pikachu"}
 or
   {"type":"action","tool":"get_pokemon_species","name":"pikachu"}
+or
+  {"type":"action","tool":"get_pokemon_stats","name":"pikachu"}
+or
+  {"type":"action","tool":"get_pokemon_moves","name":"pikachu"}
 
 If you can answer the user directly without calling a tool, respond with:
   {"type":"final","answer":"<your answer>"}
@@ -116,6 +122,14 @@ If you can answer the user directly without calling a tool, respond with:
                                     Err(e) => format!("Error fetching species: {}", e),
                                 }
                             }
+                            "get_pokemon_stats" => match self.pokeapi.get_pokemon(name).await {
+                                Ok(pokemon) => self.pokeapi.format_pokemon_stats(&pokemon),
+                                Err(e) => format!("Error fetching pokemon stats: {}", e),
+                            },
+                            "get_pokemon_moves" => match self.pokeapi.get_pokemon(name).await {
+                                Ok(pokemon) => self.pokeapi.format_pokemon_moves(&pokemon, 30),
+                                Err(e) => format!("Error fetching pokemon moves: {}", e),
+                            },
                             _ => format!("Unknown tool requested: {}", tool),
                         };
 

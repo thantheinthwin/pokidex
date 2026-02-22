@@ -7,6 +7,8 @@ A CLI-based RAG (Retrieval-Augmented Generation) system that combines Google's G
 - 🤖 **AI-Powered**: Uses Google Gemini API for natural language understanding
 - 📊 **Pokemon Data**: Retrieves real-time Pokemon data from PokéAPI
 - 💬 **Interactive CLI**: Chat interface for asking questions about Pokemon
+- 🖼️ **Image Identification**: Identify Pokémon from an image and return their specs
+- 🚫 **Non-Pokémon Rejection**: Denies requests when the image does not contain a Pokémon
 - 🔍 **RAG System**: Combines retrieved Pokemon data with AI for accurate responses
 - 🧰 **Tool-Oriented Reasoning**: The agent can choose focused tools for full details, species info, stats, and moves
 
@@ -49,6 +51,12 @@ A CLI-based RAG (Retrieval-Augmented Generation) system that combines Google's G
 
    # Or ask a single question
    cargo run -- ask "What are Pikachu's stats?"
+
+   # Or identify a Pokémon from an image path
+   cargo run -- identify-image ./pikachu.png
+
+   # Or open system file picker (Finder/File Explorer/dialog)
+   cargo run -- select-image
    ```
 
 ## Usage Examples
@@ -81,6 +89,24 @@ Goodbye!
 ```bash
 $ cargo run -- ask "What moves can Pikachu learn?"
 Assistant: [AI-generated response with Pokemon data]
+```
+
+### Image Query Mode
+
+```bash
+$ cargo run -- identify-image ./pikachu.png
+Assistant: Identified Pokémon from image: pikachu
+
+Name: pikachu
+ID: 25
+Types: electric
+...
+
+$ cargo run -- identify-image ./cat.png
+Assistant: I can't provide Pokémon specs for this image because it does not appear to contain a Pokémon.
+
+$ cargo run -- select-image
+# Opens native file picker so you can choose an image interactively
 ```
 
 ## Project Structure

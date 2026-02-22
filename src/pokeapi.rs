@@ -131,33 +131,6 @@ impl PokeApiClient {
         output
     }
 
-    pub fn format_pokemon_stats(&self, pokemon: &Pokemon) -> String {
-        let mut output = String::new();
-        writeln!(output, "Name: {}", pokemon.name).ok();
-        writeln!(output, "Base Stats:").ok();
-
-        for stat in &pokemon.stats {
-            writeln!(output, "  - {}: {}", stat.stat.name, stat.base_stat).ok();
-        }
-
-        output
-    }
-
-    pub fn format_pokemon_moves(&self, pokemon: &Pokemon, limit: usize) -> String {
-        let mut output = String::new();
-        writeln!(output, "Name: {}", pokemon.name).ok();
-        writeln!(output, "Moves (showing up to {}):", limit).ok();
-
-        let mut moves: Vec<String> = pokemon.moves.iter().map(|m| m.move_.name.clone()).collect();
-        moves.sort();
-
-        for move_name in moves.into_iter().take(limit) {
-            writeln!(output, "  - {}", move_name).ok();
-        }
-
-        output
-    }
-
     pub async fn extract_pokemon_name(&self, query: &str) -> Option<String> {
         // Simple extraction - look for capitalized words that might be Pokemon names
         // This is a basic implementation; could be improved with NLP
@@ -174,12 +147,82 @@ impl PokeApiClient {
                 && word.len() < 20
             {
                 // Try to get the Pokemon to verify
-                if let Ok(_) = self.get_pokemon(&word.to_lowercase()).await {
-                    return Some(word.to_lowercase());
+                let normalized = Self::normalize_pokemon_name(word);
+                if let Ok(_) = self.get_pokemon(&normalized).await {
+                    return Some(normalized);
                 }
             }
         }
 
         None
+    }
+
+    pub fn normalize_pokemon_name(name: &str) -> String {
+        let mut normalized = String::new();
+        let mut last_was_dash = false;
+
+        for ch in name.trim().to_lowercase().chars() {
+            let mapped = match ch {
+                'é' => Some('e'),
+                '♀' => Some('f'),
+                '♂' => Some('m'),
+                c if c.is_ascii_alphanumeric() => Some(c),
+                _ => None,
+            };
+
+            if let Some(c) = mapped {
+                if (c == 'f' || c == 'm')
+                    && matches!(ch, '♀' | '♂')
+                    && !normalized.is_empty()
+                    && !last_was_dash
+                {
+                    normalized.push('-');
+                }
+                normalized.push(c);
+                last_was_dash = false;
+            } else if matches!(ch, ' ' | '-' | '_' | '/' | ':')
+                && !normalized.is_empty()
+                && !last_was_dash
+            {
+                normalized.push('-');
+                last_was_dash = true;
+            }
+        }
+
+        normalized.trim_matches('-').to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PokeApiClient;
+
+    #[test]
+    fn normalizes_display_names_to_pokeapi_slugs() {
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name(" Mr. Mime "),
+            "mr-mime"
+        );
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Type: Null"),
+            "type-null"
+        );
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Farfetch'd"),
+            "farfetchd"
+        );
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Nidoran♀"),
+            "nidoran-f"
+        );
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Nidoran♂"),
+            "nidoran-m"
+        );
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Porygon/Z"),
+            "porygon-z"
+        );
+        assert_eq!(PokeApiClient::normalize_pokemon_name("Ho-Oh"), "ho-oh");
     }
 }

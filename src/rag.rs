@@ -7,7 +7,6 @@ pub struct RAGEngine {
     gemini: GeminiClient,
     pokeapi: PokeApiClient,
 }
-
 impl RAGEngine {
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -175,5 +174,67 @@ If you can answer the user directly without calling a tool, respond with:
             let context = "You are a Pokemon assistant. Answer questions about Pokemon using general knowledge. If asked about a specific Pokemon, you may need the Pokemon name to provide detailed information.";
             self.gemini.generate_with_context(context, query).await
         }
+    }
+
+    pub async fn process_image_query(&self, image_path: &str) -> Result<String> {
+        let decision = self.gemini.identify_pokemon_from_image(image_path).await?;
+        println!("[RAG] Image decision (raw): {}", decision);
+
+        if let Ok(json) = serde_json::from_str::<Value>(&decision) {
+            if let Some(t) = json.get("type").and_then(|v| v.as_str()) {
+                match t {
+                    "pokemon" => {
+                        let name = json
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .trim();
+                        let normalized_name = PokeApiClient::normalize_pokemon_name(name);
+
+                        if normalized_name.is_empty() {
+                            return Ok("I couldn't confidently identify a specific Pokémon from that image. Please try a clearer image.".to_string());
+                        }
+
+                        let pokemon = match self.pokeapi.get_pokemon(&normalized_name).await {
+                            Ok(p) => p,
+                            Err(_) => {
+                                return Ok("I detected a character, but couldn't match it to a valid Pokémon entry. Please try another image.".to_string())
+                            }
+                        };
+
+                        let species = self
+                            .pokeapi
+                            .get_pokemon_species(&normalized_name)
+                            .await
+                            .ok();
+                        let specs = if let Some(species) = species {
+                            self.pokeapi.format_pokemon_with_species(&pokemon, &species)
+                        } else {
+                            self.pokeapi.format_pokemon_data(&pokemon)
+                        };
+
+                        return Ok(format!(
+                            "Identified Pokémon from image: {}
+
+{}",
+                            pokemon.name, specs
+                        ));
+                    }
+                    "not_pokemon" => {
+                        let reason = json
+                            .get("reason")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("the image does not appear to contain a Pokémon");
+                        return Ok(format!(
+                            "I can't provide Pokémon specs for this image because {}.",
+                            reason
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Ok("I couldn't determine whether this image contains a Pokémon. Please try a clearer Pokémon image.".to_string())
     }
 }

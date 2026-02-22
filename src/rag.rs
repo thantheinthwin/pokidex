@@ -174,21 +174,21 @@ If you can answer the user directly without calling a tool, respond with:
                             .get("name")
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
-                            .trim()
-                            .to_lowercase();
+                            .trim();
+                        let normalized_name = PokeApiClient::normalize_pokemon_name(name);
 
-                        if name.is_empty() {
+                        if normalized_name.is_empty() {
                             return Ok("I couldn't confidently identify a specific Pokémon from that image. Please try a clearer image.".to_string());
                         }
 
-                        let pokemon = match self.pokeapi.get_pokemon(&name).await {
+                        let pokemon = match self.pokeapi.get_pokemon(&normalized_name).await {
                             Ok(p) => p,
                             Err(_) => {
                                 return Ok("I detected a character, but couldn't match it to a valid Pokémon entry. Please try another image.".to_string())
                             }
                         };
 
-                        let species = self.pokeapi.get_pokemon_species(&name).await.ok();
+                        let species = self.pokeapi.get_pokemon_species(&normalized_name).await.ok();
                         let specs = if let Some(species) = species {
                             self.pokeapi.format_pokemon_with_species(&pokemon, &species)
                         } else {

@@ -147,12 +147,71 @@ impl PokeApiClient {
                 && word.len() < 20
             {
                 // Try to get the Pokemon to verify
-                if let Ok(_) = self.get_pokemon(&word.to_lowercase()).await {
-                    return Some(word.to_lowercase());
+                let normalized = Self::normalize_pokemon_name(word);
+                if let Ok(_) = self.get_pokemon(&normalized).await {
+                    return Some(normalized);
                 }
             }
         }
 
         None
+    }
+
+    pub fn normalize_pokemon_name(name: &str) -> String {
+        let mut normalized = String::new();
+        let mut last_was_dash = false;
+
+        for ch in name.trim().to_lowercase().chars() {
+            match ch {
+                'a'..='z' | '0'..='9' => {
+                    normalized.push(ch);
+                    last_was_dash = false;
+                }
+                ' ' | '-' | '_' | ':' => {
+                    if !normalized.is_empty() && !last_was_dash {
+                        normalized.push('-');
+                        last_was_dash = true;
+                    }
+                }
+                '♀' => {
+                    if !normalized.is_empty() && !last_was_dash {
+                        normalized.push('-');
+                    }
+                    normalized.push('f');
+                    last_was_dash = false;
+                }
+                '♂' => {
+                    if !normalized.is_empty() && !last_was_dash {
+                        normalized.push('-');
+                    }
+                    normalized.push('m');
+                    last_was_dash = false;
+                }
+                'é' => {
+                    normalized.push('e');
+                    last_was_dash = false;
+                }
+                _ => {}
+            }
+        }
+
+        normalized.trim_matches('-').to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PokeApiClient;
+
+    #[test]
+    fn normalizes_display_names_to_pokeapi_slugs() {
+        assert_eq!(PokeApiClient::normalize_pokemon_name(" Mr. Mime "), "mr-mime");
+        assert_eq!(PokeApiClient::normalize_pokemon_name("Type: Null"), "type-null");
+        assert_eq!(
+            PokeApiClient::normalize_pokemon_name("Farfetch'd"),
+            "farfetchd"
+        );
+        assert_eq!(PokeApiClient::normalize_pokemon_name("Nidoran♀"), "nidoran-f");
+        assert_eq!(PokeApiClient::normalize_pokemon_name("Nidoran♂"), "nidoran-m");
     }
 }

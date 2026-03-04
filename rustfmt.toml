@@ -1,0 +1,9 @@
+# Project-wide Rust formatting rules.
+# These values intentionally mirror stable rustfmt defaults so formatting
+# stays predictable across contributors and CI.
+edition = "2021"
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heuristics = "Default"
